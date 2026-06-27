@@ -179,6 +179,31 @@
   margin: 0;
 }
 
+.log-window {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(2, 8, 23, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+}
+
+.log-line {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  color: #cbd5e1;
+}
+
+.log-line span {
+  color: #38bdf8;
+}
+
+.log-line p {
+  margin: 0;
+}
+
 @media (max-width: 640px) {
   .app-shell {
     padding: 20px;

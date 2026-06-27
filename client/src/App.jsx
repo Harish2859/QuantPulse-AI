@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import axios from 'axios';
 import { Activity, BrainCircuit, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 import './App.css';
@@ -9,8 +8,9 @@ function App() {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [logs, setLogs] = useState([]);
 
-  const fetchAnalysis = async () => {
+  const fetchAnalysis = () => {
     if (!ticker.trim()) {
       setError('Please enter a ticker symbol.');
       return;
@@ -19,16 +19,35 @@ function App() {
     setLoading(true);
     setError('');
     setReport(null);
+    setLogs([]);
 
-    try {
-      const response = await axios.post('http://127.0.0.1:8000/analyze', { ticker: ticker.toUpperCase() });
-      setReport(response.data?.data?.news_data?.[0] ?? null);
-    } catch (err) {
-      console.error('Error fetching analysis:', err);
-      setError('The analysis request failed. Make sure the backend is running.');
-    } finally {
+    const eventSource = new EventSource(`http://127.0.0.1:8000/analyze-stream?ticker=${ticker.toUpperCase()}`);
+
+    eventSource.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.message) {
+        setLogs((prev) => [...prev, data.message]);
+      }
+
+      if (data.status === 'complete') {
+        const payload = data.report?.news_data?.[0] ?? data.report;
+        setReport(payload ?? null);
+        setLoading(false);
+        eventSource.close();
+      }
+
+      if (data.status === 'error') {
+        setError(data.message || 'The analysis request failed.');
+        setLoading(false);
+        eventSource.close();
+      }
+    };
+
+    eventSource.onerror = () => {
+      setError('The stream disconnected. Please try again.');
       setLoading(false);
-    }
+      eventSource.close();
+    };
   };
 
   return (
@@ -74,12 +93,30 @@ function App() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1, duration: 0.4 }}
       >
-        {loading ? (
-          <div className="loading-state">
-            <Sparkles size={20} />
-            <span>The agent is gathering market context and summarizing the latest signal.</span>
+        {loading || logs.length > 0 ? (
+          <div className="report-card">
+            <div className="report-header">
+              <Sparkles size={18} />
+              <h2>Agent reasoning log</h2>
+            </div>
+            <div className="log-window">
+              {logs.map((entry, index) => (
+                <div key={`${entry}-${index}`} className="log-line">
+                  <span>$</span>
+                  <p>{entry}</p>
+                </div>
+              ))}
+              {loading && logs.length === 0 ? (
+                <div className="log-line">
+                  <span>$</span>
+                  <p>Waiting for the workflow to begin...</p>
+                </div>
+              ) : null}
+            </div>
           </div>
-        ) : report ? (
+        ) : null}
+
+        {!loading && report ? (
           <div className="report-card">
             <div className="report-header">
               <Activity size={18} />
